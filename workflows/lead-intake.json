@@ -1,0 +1,78 @@
+{
+  "name": "Lead Intake - Rule Based Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lead-webhook",
+      "name": "Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "lead-intake-demo"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? {};\nconst name = String(body.name ?? '').trim();\nconst email = String(body.email ?? '').trim();\nconst message = String(body.message ?? '').trim();\nconst source = String(body.source ?? 'unknown').trim().slice(0,80);\nif (!name || !email || !message) {\n  return [{ json: { ok: false, error: 'name, email, and message are required' } }];\n}\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n  return [{ json: { ok: false, error: 'Invalid email format' } }];\n}\nconst lower = message.toLowerCase();\nconst priority = /urgent|asap|immediately|emergency/.test(lower) ? 'high' : 'normal';\nconst topic = /website|shopify|wordpress/.test(lower) ? 'website' : /automation|workflow|integrat/.test(lower) ? 'automation' : 'general';\nreturn [{ json: { ok: true, lead: { name: name.slice(0,120), email: email.slice(0,254), message: message.slice(0,5000), source, topic, priority, receivedAt: new Date().toISOString() } } }];"
+      },
+      "id": "validate-lead",
+      "name": "Validate and Classify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-lead",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate and Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Classify": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
